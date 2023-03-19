@@ -34,7 +34,7 @@ function YoutubeToMp3Component() {
 
     await axios
       .post(
-        "/api/convert",
+        "https://serene-ganache-2deea8.netlify.app/api/convert",
         { url: videoURL },
         {
           responseType: "blob",
