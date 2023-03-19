@@ -10,37 +10,60 @@ const useStyles = makeStyles({
     flexDirection: "column",
     alignItems: "center",
   },
+  download: {
+    display: "flex",
+    justifyContent: "center",
+    flexDirection: "column",
+    alignItems: "center",
+    marginTop: "1em",
+  },
 });
 
 function YoutubeToMp3Component() {
   const classes = useStyles();
   const [videoURL, setVideoURL] = useState("");
-  const [videoData, setVideoData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [progress, setProgress] = useState(0);
 
   const handleURLChange = (event) => {
     setVideoURL(event.target.value);
   };
 
   const handleConvert = async () => {
-    const videoURL1 = videoURL;
-    const searchParams = new URLSearchParams(new URL(videoURL1).search);
-    const videoID = searchParams.get("v"); // AbcDeFgHiJk
+    setLoading(true);
 
-    // Fetch video data using YouTube API
-    const API_KEY = process.env.REACT_APP_API_KEY;
-    const response = await axios.get(
-      `https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${videoID}&key=${API_KEY}`
-    );
-    const videoDetails = response.data.items[0].snippet;
-    setVideoData(videoDetails);
-
-    const test = await axios
-      .get(`https://convert2mp3s.com/api/button/mp4?url=${videoURL1}`)
+    await axios
+      .post(
+        "/api/convert",
+        { url: videoURL },
+        {
+          responseType: "blob",
+          headers: {
+            "x-api-key": process.env.REACT_APP_API_KEY,
+          },
+          onDownloadProgress: (event) => {
+            const percentCompleted = Math.round(
+              (event.loaded * 100) / event.total
+            );
+            setProgress(percentCompleted);
+          },
+        }
+      )
       .then((res) => {
-        console.log(res);
+        const url = window.URL.createObjectURL(new Blob([res.data]));
+        const link = document.createElement("a");
+        link.href = url;
+        link.setAttribute("download", "output.mp3");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
       })
       .catch((err) => {
-        console.log(err);
+        alert("Error converting the video.");
+      })
+      .finally(() => {
+        setLoading(false);
+        setProgress(0);
       });
   };
 
@@ -57,15 +80,13 @@ function YoutubeToMp3Component() {
           style={{ marginTop: "1em" }}
           variant="contained"
           onClick={handleConvert}
+          disabled={loading}
         >
           Convert
         </Button>
       </div>
-      {videoData && (
-        <div>
-          <img src={videoData.thumbnails.default.url} alt={videoData.title} />
-          <p>{videoData.title}</p>
-        </div>
+      {loading && (
+        <div className={classes.download}>Download progress: {progress}%</div>
       )}
     </div>
   );
